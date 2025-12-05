@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catching Falling Objects Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background: linear-gradient(to bottom, #87CEEB, #B0E0E6);
+            border: 3px solid #4682B4;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        .game-area {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .player {
+            position: absolute;
+            bottom: 10px;
+            width: 100px;
+            height: 20px;
+            background: linear-gradient(to right, #FF6B6B, #FF8E8E);
+            border-radius: 10px;
+            border: 2px solid #FF4444;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: left 0.1s ease;
+            left: 350px;
+        }
+
+        .falling-object {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #FFD700, #FFA500);
+            border-radius: 50%;
+            border: 2px solid #FF8C00;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            animation: fall linear;
+        }
+
+        @keyframes fall {
+            from {
+                top: -30px;
+            }
+            to {
+                top: 600px;
+            }
+        }
+
+        .score-board {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+            background: rgba(255,255,255,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: none;
+        }
+
+        .start-button, .restart-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        .start-button:hover, .restart-button:hover {
+            background: #45a049;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #333;
+            background: rgba(255,255,255,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .lives {
+            color: #FF4444;
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-area" id="gameArea">
+            <div class="score-board">
+                Score: <span id="score">0</span>
+                <span class="lives">Lives: <span id="lives">3</span></span>
+            </div>
+            
+            <div class="player" id="player"></div>
+            
+            <div class="game-over" id="gameOver">
+                <h2>Game Over!</h2>
+                <p>Final Score: <span id="finalScore">0</span></p>
+                <button class="restart-button" onclick="startGame()">Play Again</button>
+            </div>
+            
+            <div class="instructions">
+                Use A/D keys or Arrow keys to move<br>
+                Catch the falling objects!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+        let playerPosition = 350;
+        let gameSpeed = 2;
+        let spawnRate = 0.02;
+        let objects = [];
+
+        const gameArea = document.getElementById('gameArea');
+        const player = document.getElementById('player');
+        const scoreElement = document.getElementById('score');
+        const livesElement = document.getElementById('lives');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        // Player movement
+        const keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        function updatePlayer() {
+            if (keys['a'] || keys['arrowleft']) {
+                playerPosition -= 5;
+            }
+            if (keys['d'] || keys['arrowright']) {
+                playerPosition += 5;
+            }
+
+            // Keep player within bounds
+            if (playerPosition < 0) playerPosition = 0;
+            if (playerPosition > 700) playerPosition = 700;
+
+            player.style.left = playerPosition + 'px';
+        }
+
+        // Falling objects
+        function createFallingObject() {
+            const object = document.createElement('div');
+            object.className = 'falling-object';
+            object.style.left = Math.random() * 770 + 'px';
+            object.style.animationDuration = (3 - gameSpeed * 0.5) + 's';
+            gameArea.appendChild(object);
+            objects.push({
+                element: object,
+                x: parseInt(object.style.left),
+                y: -30,
+                speed: gameSpeed
+            });
+        }
+
+        function updateFallingObjects() {
+            objects.forEach((obj, index) => {
+                obj.y += obj.speed;
+                obj.element.style.top = obj.y + 'px';
+
+                // Check collision with player
+                if (obj.y > 550 && obj.y < 580 &&
+                    obj.x > playerPosition - 15 && obj.x < playerPosition + 115) {
+                    // Object caught
+                    score += 10;
+                    scoreElement.textContent = score;
+                    obj.element.remove();
+                    objects.splice(index, 1);
+                    
+                    // Increase difficulty slightly
+                    if (score % 50 === 0) {
+                        gameSpeed += 0.1;
+                        spawnRate += 0.005;
+                    }
+                }
+                // Check if object fell off screen
+                else if (obj.y > 600) {
+                    lives--;
+                    livesElement.textContent = lives;
+                    obj.element.remove();
+                    objects.splice(index, 1);
+                    
+                    if (lives <= 0) {
+                        endGame();
+                    }
+                }
+            });
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            updatePlayer();
+            updateFallingObjects();
+
+            // Spawn new objects
+            if (Math.random() < spawnRate) {
+                createFallingObject();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            lives = 3;
+            playerPosition = 350;
+            gameSpeed = 2;
+            spawnRate = 0.02;
+            objects = [];
+
+            // Clear existing objects
+            document.querySelectorAll('.falling-object').forEach(obj => obj.remove());
+
+            // Reset UI
+            scoreElement.textContent = score;
+            livesElement.textContent = lives;
+            gameOverScreen.style.display = 'none';
+            player.style.left = playerPosition + 'px';
+
+            gameLoop();
+        }
+
+        function endGame() {
+            gameRunning = false;
+            finalScoreElement.textContent = score;
+            gameOverScreen.style.display = 'block';
+        }
+
+        // Start the game automatically when page loads
+        window.addEventListener('load', () => {
+            setTimeout(startGame, 500);
+        });
+    </script>
+</body>
+</html>
