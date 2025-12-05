@@ -144,6 +144,11 @@
                 Use A/D keys or Arrow keys to move<br>
                 Catch the falling objects!
             </div>
+
+            <!-- Add start button -->
+            <div style="position:absolute; top:10px; right:10px;">
+                <button class="start-button" onclick="startGame()">Start</button>
+            </div>
         </div>
     </div>
 
@@ -227,44 +232,56 @@
             const object = document.createElement('div');
             object.className = 'falling-object';
             object.style.left = Math.random() * 770 + 'px';
+            object.style.top = '-30px';
             object.style.animationDuration = (3 - gameSpeed * 0.5) + 's';
             gameArea.appendChild(object);
             objects.push({
                 element: object,
-                x: parseInt(object.style.left),
                 y: -30,
                 speed: gameSpeed
             });
         }
 
+        function rectsOverlap(r1, r2) {
+            return !(r2.left > r1.right ||
+                     r2.right < r1.left ||
+                     r2.top > r1.bottom ||
+                     r2.bottom < r1.top);
+        }
+
         function updateFallingObjects() {
+            const playerRect = player.getBoundingClientRect();
+            const areaRect = gameArea.getBoundingClientRect();
+
             objects.forEach((obj, index) => {
                 obj.y += obj.speed;
                 obj.element.style.top = obj.y + 'px';
 
-                // Check collision with player
-                if (obj.y > 550 && obj.y < 580 &&
-                    obj.x > playerPosition - 15 && obj.x < playerPosition + 115) {
-                    // Object caught - increase score
+                // Get current rects
+                const objRect = obj.element.getBoundingClientRect();
+
+                // Collision with player (use rect overlap near bottom)
+                if (rectsOverlap(objRect, playerRect)) {
                     score += 10;
                     scoreElement.textContent = score;
                     obj.element.remove();
                     objects.splice(index, 1);
-                    
-                    // Increase difficulty slightly
+
                     if (score % 50 === 0) {
                         gameSpeed += 0.1;
                         spawnRate += 0.005;
                     }
+                    return; // handled this object
                 }
-                // Check if object fell off screen (missed)
-                else if (obj.y > 600) {
-                    // Object missed - reduce lives
+
+                // Missed (fell below game area)
+                const bottomLimit = areaRect.top + 600;
+                if (objRect.top > bottomLimit) {
                     lives--;
                     livesElement.textContent = lives;
                     obj.element.remove();
                     objects.splice(index, 1);
-                    
+
                     if (lives <= 0) {
                         endGame();
                     }
