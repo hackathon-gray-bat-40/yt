@@ -163,30 +163,63 @@
         const gameOverScreen = document.getElementById('gameOver');
         const finalScoreElement = document.getElementById('finalScore');
 
-        // Player movement
+        // Player movement - improved key handling
         const keys = {};
+        let isMoving = false;
         
         document.addEventListener('keydown', (e) => {
-            keys[e.key.toLowerCase()] = true;
+            e.preventDefault();
+            const key = e.key.toLowerCase();
+            if (key === 'a' || key === 'arrowleft' || key === 'd' || key === 'arrowright') {
+                keys[key] = true;
+                if (!isMoving) {
+                    isMoving = true;
+                    movePlayer();
+                }
+            }
         });
 
         document.addEventListener('keyup', (e) => {
-            keys[e.key.toLowerCase()] = false;
+            e.preventDefault();
+            const key = e.key.toLowerCase();
+            keys[key] = false;
+            
+            // Check if any movement keys are still pressed
+            if (!keys['a'] && !keys['arrowleft'] && !keys['d'] && !keys['arrowright']) {
+                isMoving = false;
+            }
         });
 
-        function updatePlayer() {
+        function movePlayer() {
+            if (!isMoving) return;
+            
+            let moved = false;
             if (keys['a'] || keys['arrowleft']) {
-                playerPosition -= 5;
+                playerPosition -= 8;
+                moved = true;
             }
             if (keys['d'] || keys['arrowright']) {
-                playerPosition += 5;
+                playerPosition += 8;
+                moved = true;
             }
 
             // Keep player within bounds
             if (playerPosition < 0) playerPosition = 0;
             if (playerPosition > 700) playerPosition = 700;
 
-            player.style.left = playerPosition + 'px';
+            if (moved) {
+                player.style.left = playerPosition + 'px';
+            }
+
+            // Continue moving if keys are still pressed
+            if (isMoving) {
+                requestAnimationFrame(movePlayer);
+            }
+        }
+
+        function updatePlayer() {
+            // This function is now handled by movePlayer()
+            // Keep for compatibility but movement is handled separately
         }
 
         // Falling objects
@@ -241,7 +274,7 @@
         function gameLoop() {
             if (!gameRunning) return;
 
-            updatePlayer();
+            // Remove updatePlayer() call since movement is handled separately
             updateFallingObjects();
 
             // Spawn new objects
@@ -278,6 +311,61 @@
             finalScoreElement.textContent = score;
             gameOverScreen.style.display = 'block';
         }
+
+        // Add mouse/touch support for mobile devices
+        let isDragging = false;
+        let startX = 0;
+
+        gameArea.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            e.preventDefault();
+        });
+
+        gameArea.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const deltaX = e.clientX - startX;
+            playerPosition += deltaX * 0.5;
+            
+            // Keep player within bounds
+            if (playerPosition < 0) playerPosition = 0;
+            if (playerPosition > 700) playerPosition = 700;
+            
+            player.style.left = playerPosition + 'px';
+            startX = e.clientX;
+            e.preventDefault();
+        });
+
+        gameArea.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Touch support
+        gameArea.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            startX = e.touches[0].clientX;
+            e.preventDefault();
+        });
+
+        gameArea.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            
+            const deltaX = e.touches[0].clientX - startX;
+            playerPosition += deltaX * 0.5;
+            
+            // Keep player within bounds
+            if (playerPosition < 0) playerPosition = 0;
+            if (playerPosition > 700) playerPosition = 700;
+            
+            player.style.left = playerPosition + 'px';
+            startX = e.touches[0].clientX;
+            e.preventDefault();
+        });
+
+        gameArea.addEventListener('touchend', () => {
+            isDragging = false;
+        });
 
         // Start the game automatically when page loads
         window.addEventListener('load', () => {
